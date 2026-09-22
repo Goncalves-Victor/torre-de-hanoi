@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Como um robô resolve a Torre de Hanói</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EFF5FB; --surface:#FFFFFF; --surface-soft:#E3EDF7;
+  --ink:#16283C; --ink-soft:#4E6A86; --line:#C9DAEA; --line-strong:#89A9C6;
+  --blue:#2F6FD0; --gold:#EFA019; --green:#27A167;
+  --blue-soft:#DCE9FA; --gold-soft:#FBEBD0; --green-soft:#D8F0E4;
+  --radius:14px;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1926; --surface:#18283A; --surface-soft:#223449;
+    --ink:#E9F2FB; --ink-soft:#A8C0D6; --line:#31485F; --line-strong:#6D8CA8;
+    --blue:#6BA6F0; --gold:#F5BB55; --green:#4FC48E;
+    --blue-soft:#1E3452; --gold-soft:#3E3222; --green-soft:#1C3D31;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1926; --surface:#18283A; --surface-soft:#223449;
+  --ink:#E9F2FB; --ink-soft:#A8C0D6; --line:#31485F; --line-strong:#6D8CA8;
+  --blue:#6BA6F0; --gold:#F5BB55; --green:#4FC48E;
+  --blue-soft:#1E3452; --gold-soft:#3E3222; --green-soft:#1C3D31;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Nunito",system-ui,sans-serif;font-size:18px;line-height:1.65}
+.wrap{max-width:1000px;margin:0 auto;padding:28px 20px 64px}
+h1,h2,h3{font-family:"Baloo 2","Nunito",system-ui,sans-serif;font-weight:700;line-height:1.15;margin:0}
+h1{font-size:clamp(30px,5vw,46px)}
+h2{font-size:clamp(23px,3.4vw,31px)}
+h3{font-size:19px;font-weight:600}
+p{margin:.6em 0}
+.lead{font-size:clamp(17px,2.2vw,20px);color:var(--ink-soft);max-width:70ch}
+.card{background:var(--surface);border:2px solid var(--line);border-radius:var(--radius);padding:20px}
+section{margin-top:40px}
+.tag{display:inline-block;background:var(--blue);color:#fff;font-family:"Baloo 2",sans-serif;font-weight:700;font-size:15px;padding:3px 14px;border-radius:999px;margin-bottom:10px}
+.chooser{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:20px}
+button{font-family:"Baloo 2",sans-serif;font-weight:700;font-size:17px;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:9px 18px;cursor:pointer}
+button:hover{border-color:var(--blue)}
+button:active{transform:scale(.97)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button[disabled]{opacity:.45;cursor:default}
+button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+button.go{background:var(--gold);border-color:var(--gold);color:#3A2A08}
+button.n-btn{padding:9px 15px;min-width:46px}
+input[type=range]{flex:1;min-width:150px;accent-color:var(--blue);height:26px}
+.bot{display:flex;gap:14px;align-items:flex-start;background:var(--blue-soft);border-radius:var(--radius);padding:14px 16px;min-height:96px}
+.bot p{margin:0;font-size:clamp(16px,2.1vw,19px);font-weight:600}
+.scroller{overflow:auto;border:2px dashed var(--line);border-radius:var(--radius);background:var(--surface);margin-top:16px;max-height:min(75vh,600px)}
+.fila{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:10px;background:var(--surface-soft);border-radius:var(--radius);min-height:70px}
+.fila svg{flex:0 0 auto;background:var(--surface);border:2px solid var(--line);border-radius:8px}
+.small{font-size:15px;color:var(--ink-soft)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:15px;color:var(--ink-soft)}
+.key{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:2px solid var(--line)}
+.note{background:var(--gold-soft);border-radius:var(--radius);padding:14px 16px;font-size:16px}
+.stats{margin-top:10px;font-size:16px;color:var(--ink-soft)}
+.pop{animation:pop .35s ease-out}
+@keyframes pop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Como um robô resolve a Torre de Hanói</h1>
+  <p class="lead">Um robô não é esperto como você. Ele não olha para o jogo e pensa "ah, já sei". Ele faz outra coisa: desenha <em>todas</em> as jogadas possíveis e escolhe o caminho mais curto. Vamos ver isso acontecer.</p>
+  <div class="chooser">
+    <span style="font-weight:700">Quantos discos?</span>
+    <button class="n-btn" data-n="1">1</button>
+    <button class="n-btn" data-n="2">2</button>
+    <button class="n-btn on" data-n="3">3</button>
+    <button class="n-btn" data-n="4">4</button>
+    <button class="n-btn" data-n="5">5</button>
+    <button class="n-btn" data-n="6">6</button>
+    <button class="n-btn" data-n="7">7</button>
+    <button class="n-btn" data-n="8">8</button>
+  </div>
+  <p class="stats" id="stats"></p>
+</header>
+
+<section>
+  <span class="tag">Parte 1</span>
+  <h2>O robô desenha todas as jogadas</h2>
+  <p class="lead">Ele testa as jogadas <strong>de pertinho primeiro</strong>: todas as que dá para fazer com 1 movimento, depois todas com 2 movimentos, depois com 3... Isso se chama busca em largura. Quem está esperando a vez fica na fila.</p>
+
+  <div class="card" style="margin-top:16px">
+    <div class="bot">
+      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true" style="flex:0 0 auto">
+        <rect x="9" y="13" width="28" height="24" rx="8" fill="var(--blue)"/>
+        <rect x="21.5" y="5" width="3" height="8" fill="var(--blue)"/>
+        <circle cx="23" cy="4" r="3" fill="var(--gold)"/>
+        <circle cx="17" cy="23" r="3.4" fill="#fff"/>
+        <circle cx="29" cy="23" r="3.4" fill="#fff"/>
+        <rect x="17" y="30" width="12" height="3" rx="1.5" fill="#fff"/>
+      </svg>
+      <p id="fala">Carregando...</p>
+    </div>
+
+    <div class="scroller" id="treeBox"><svg id="tree" role="img" aria-label="Árvore de jogadas"></svg></div>
+
+    <div class="legend">
+      <span><i class="key" style="background:var(--gold-soft);border-color:var(--gold)"></i>olhando agora</span>
+      <span><i class="key" style="background:var(--blue-soft);border-color:var(--blue)"></i>jogada nova</span>
+      <span><i class="key" style="background:var(--surface);border-color:var(--line)"></i>já visitada</span>
+      <span><i class="key" style="background:var(--green-soft);border-color:var(--green)"></i>chegamos ao fim</span>
+      <button id="zoom" style="font-size:15px;padding:4px 14px">Tamanho real</button>
+    </div>
+
+    <h3 style="margin-top:20px">Fila de espera</h3>
+    <div class="fila" id="fila"></div>
+
+    <div class="bar">
+      <button id="p1prev">Voltar</button>
+      <button id="p1next" class="go">Próximo passo</button>
+      <button id="p1play">Tocar sozinho</button>
+      <button id="p1end">Ir para o fim</button>
+      <button id="p1rst">Começar de novo</button>
+    </div>
+    <div class="bar">
+      <input type="range" id="p1sl" min="0" max="1" step="1" value="0" aria-label="Escolher o passo">
+      <span class="small" id="p1pos"></span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="tag">Parte 2</span>
+  <h2>Agora a solução, movimento por movimento</h2>
+  <p class="lead">O robô achou o caminho até a posição verde lá em cima. Este é o mesmo caminho, mas com as torres de verdade.</p>
+
+  <div class="card" style="margin-top:16px">
+    <div class="bot" style="background:var(--green-soft)">
+      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true" style="flex:0 0 auto">
+        <rect x="9" y="13" width="28" height="24" rx="8" fill="var(--green)"/>
+        <rect x="21.5" y="5" width="3" height="8" fill="var(--green)"/>
+        <circle cx="23" cy="4" r="3" fill="var(--gold)"/>
+        <circle cx="17" cy="23" r="3.4" fill="#fff"/>
+        <circle cx="29" cy="23" r="3.4" fill="#fff"/>
+        <rect x="17" y="30" width="12" height="3" rx="1.5" fill="#fff"/>
+      </svg>
+      <p id="fala2">Carregando...</p>
+    </div>
+
+    <svg id="torres" role="img" aria-label="As três torres" style="width:100%;height:auto;margin-top:16px"></svg>
+
+    <div class="bar">
+      <button id="p2prev">Voltar</button>
+      <button id="p2next" class="go">Próximo movimento</button>
+      <button id="p2play">Tocar sozinho</button>
+      <button id="p2end">Ir para o fim</button>
+      <button id="p2rst">Começar de novo</button>
+    </div>
+    <div class="bar">
+      <input type="range" id="p2sl" min="0" max="1" step="1" value="0" aria-label="Escolher o movimento">
+      <span class="small" id="p2pos"></span>
+    </div>
+  </div>
+
+</section>
+
+</div>
+
+<script>
+var CORES=["#2F6FD0","#EFA019","#DD5390","#27A167","#8A63D2","#0FA3B1","#E2574C","#6B8E23"];
+var RULES=[["A","B"],["A","C"],["B","A"],["B","C"],["C","A"],["C","B"]];
+var N=3,T=null,s1=0,s2=0,t1=null,t2=null,caber=true;
+var SEMMOV=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function chave(e){return e.A.join(",")+"|"+e.B.join(",")+"|"+e.C.join(",")}
+function copia(e){return {A:e.A.slice(),B:e.B.slice(),C:e.C.slice()}}
+
+function resolver(n){
+  var ini={A:[],B:[],C:[]};
+  for(var d=n;d>=1;d--) ini.A.push(d);
+  var nos=[{id:0,e:ini,pai:-1,nivel:0,mov:null}];
+  var vistos={}; vistos[chave(ini)]=1;
+  var fila=[0], eventos=[{tipo:"inicio",criados:1,fila:[0]}], fim=-1;
+  if(n===0) fim=0;
+  while(fila.length&&fim<0){
+    var id=fila.shift(), no=nos[id], novos=[], repetidos=0;
+    for(var i=0;i<RULES.length;i++){
+      var o=RULES[i][0], de=RULES[i][1], e=no.e;
+      if(!e[o].length) continue;
+      var disco=e[o][e[o].length-1];
+      if(e[de].length&&disco>e[de][e[de].length-1]) continue;
+      var ne=copia(e); ne[o].pop(); ne[de].push(disco);
+      var k=chave(ne);
+      if(vistos[k]){repetidos++;continue}
+      vistos[k]=1;
+      var novo={id:nos.length,e:ne,pai:id,nivel:no.nivel+1,mov:{disco:disco,de:o,para:de}};
+      nos.push(novo); novos.push(novo.id); fila.push(novo.id);
+      if(ne.C.length===n){fim=novo.id;break}
+    }
+    eventos.push({tipo:"abrir",id:id,novos:novos,repetidos:repetidos,fila:fila.slice(),criados:nos.length,fim:fim});
+  }
+  var caminho=[], p=fim;
+  while(p>=0){caminho.unshift(p);p=nos[p].pai}
+  var niveis=[];
+  for(var j=0;j<nos.length;j++){
+    var lv=nos[j].nivel;
+    if(!niveis[lv]) niveis[lv]=[];
+    nos[j].ordem=niveis[lv].length;
+    niveis[lv].push(j);
+  }
+  var NW,NH,SX,SY,modo;
+  if(n<=4){NW=64;NH=48;SX=80;SY=90;modo="torre"}
+  else if(n<=6){NW=40;NH=30;SX=50;SY=62;modo="torre"}
+  else {NW=14;NH=14;SX=20;SY=30;modo="ponto"}
+  var largo=0;
+  for(var L=0;L<niveis.length;L++) largo=Math.max(largo,niveis[L].length);
+  var W=Math.max(largo*SX+40,560), H=niveis.length*SY+24;
+  for(var j2=0;j2<nos.length;j2++){
+    var nv=nos[j2], cnt=niveis[nv.nivel].length;
+    nv.x=W/2+(nv.ordem-(cnt-1)/2)*SX-NW/2;
+    nv.y=16+nv.nivel*SY;
+  }
+  return {n:n,nos:nos,eventos:eventos,fim:fim,caminho:caminho,W:W,H:H,NW:NW,NH:NH,modo:modo};
+}
+
+function desenho(e,x,y,w,h,n,destaque){
+  var s='<rect x="'+(x+4)+'" y="'+(y+h-8)+'" width="'+(w-8)+'" height="3" rx="1.5" fill="var(--line)"/>';
+  var hastes=["A","B","C"], dh=Math.min(7,(h-14)/n), maxw=w/3-6;
+  for(var i=0;i<3;i++){
+    var cx=x+w*(i+0.5)/3;
+    s+='<rect x="'+(cx-1.1)+'" y="'+(y+h-8-dh*n-2)+'" width="2.2" height="'+(dh*n+2)+'" rx="1.1" fill="var(--line)"/>';
+    var pil=e[hastes[i]];
+    for(var j=0;j<pil.length;j++){
+      var tam=pil[j], lw=maxw*(0.4+0.6*tam/n), alt=Math.max(dh-1.2,1.2);
+      var br=(destaque===tam)?' stroke="var(--ink)" stroke-width="1.2"':'';
+      s+='<rect x="'+(cx-lw/2)+'" y="'+(y+h-9-(j+1)*dh)+'" width="'+lw+'" height="'+alt+'" rx="1.6" fill="'+CORES[(tam-1)%8]+'"'+br+'/>';
+    }
+  }
+  return s;
+}
+
+function pintaArvore(){
+  var ev=T.eventos[s1], vis=ev.criados, atual=(ev.tipo==="abrir")?ev.id:-1;
+  var novos={}; if(ev.novos) for(var i=0;i<ev.novos.length;i++) novos[ev.novos[i]]=1;
+  var achou=(ev.fim!==undefined&&ev.fim>=0), leve=(vis>900), p=[], topo=[];
+  var rota={};
+  if(achou) for(var c=0;c<T.caminho.length;c++) rota[T.caminho[c]]=1;
+  for(var j=1;j<vis;j++){
+    var no=T.nos[j], pai=T.nos[no.pai];
+    var x1=pai.x+T.NW/2, y1=pai.y+T.NH, x2=no.x+T.NW/2, y2=no.y;
+    var d=leve?('M'+x1+' '+y1+'L'+x2+' '+y2):('M'+x1+' '+y1+' C'+x1+' '+(y1+26)+' '+x2+' '+(y2-26)+' '+x2+' '+y2);
+    var cor="var(--line-strong)", w=leve?1.8:2.8, cima=false;
+    if(achou&&rota[no.id]&&rota[no.pai]){cor="var(--green)";w=leve?3.5:5.5;cima=true}
+    else if(novos[no.id]){cor="var(--blue)";w=leve?3:4.5;cima=true}
+    var linha='<path d="'+d+'" fill="none" stroke="'+cor+'" stroke-width="'+w+'" stroke-linecap="round"/>';
+    if(cima) topo.push(linha); else p.push(linha);
+  }
+  p=p.concat(topo);
+  for(var k=0;k<vis;k++){
+    var nk=T.nos[k], fill="var(--surface)", borda="var(--line)", bw=2;
+    if(novos[nk.id]){fill="var(--blue-soft)";borda="var(--blue)";bw=3}
+    if(nk.id===atual){fill="var(--gold-soft)";borda="var(--gold)";bw=3}
+    if(achou&&nk.id===T.fim){fill="var(--green-soft)";borda="var(--green)";bw=4}
+    if(T.modo==="ponto"){
+      var r=(achou&&nk.id===T.fim)?9:(nk.id===atual?8:5);
+      p.push('<circle cx="'+(nk.x+T.NW/2)+'" cy="'+(nk.y+T.NH/2)+'" r="'+r+'" fill="'+fill+'" stroke="'+borda+'" stroke-width="'+bw+'"/>');
+    } else {
+      p.push('<g'+(novos[nk.id]&&!leve?' class="pop"':'')+'><rect x="'+nk.x+'" y="'+nk.y+'" width="'+T.NW+'" height="'+T.NH+'" rx="8" fill="'+fill+'" stroke="'+borda+'" stroke-width="'+bw+'"/>'+desenho(nk.e,nk.x+3,nk.y+2,T.NW-6,T.NH-4,T.n,-1)+'</g>');
+    }
+  }
+  var t=document.getElementById("tree");
+  t.setAttribute("viewBox","0 0 "+T.W+" "+T.H);
+  t.style.width=caber?"100%":(T.W+"px");
+  t.style.height="auto";
+  t.innerHTML=p.join("");
+}
+
+function pintaFila(){
+  var f=T.eventos[s1].fila, html="", lim=Math.min(f.length,9);
+  if(!f.length) html='<span class="small">A fila está vazia.</span>';
+  for(var i=0;i<lim;i++){
+    var e=T.nos[f[i]].e;
+    html+='<svg width="56" height="44" viewBox="0 0 56 44">'+desenho(e,3,3,50,38,T.n,-1)+'</svg>';
+  }
+  if(f.length>lim) html+='<span class="small">+'+(f.length-lim)+' esperando</span>';
+  document.getElementById("fila").innerHTML=html;
+}
+
+function fala1(){
+  var ev=T.eventos[s1], txt;
+  if(ev.tipo==="inicio"){
+    txt="Tudo começa aqui: os "+T.n+" disco"+(T.n>1?"s empilhados":"")+" na torre A. O robô coloca essa posição na fila e vai pensar.";
+  } else if(ev.fim>=0){
+    txt="Achou! A posição verde tem todos os discos na torre C. Como o robô foi testando de pertinho primeiro, esse é o caminho mais curto que existe: "+(T.caminho.length-1)+" movimentos.";
+  } else {
+    var n=ev.novos.length;
+    txt="O robô pegou a primeira posição da fila e perguntou: daqui, quais jogadas dá para fazer? ";
+    txt+= n===0 ? "Nenhuma jogada nova." : ("Encontrou "+n+" jogada"+(n>1?"s":"")+" nova"+(n>1?"s":"")+" e colocou no fim da fila.");
+    if(ev.repetidos>0) txt+=" ("+ev.repetidos+" já tinha"+(ev.repetidos>1?"m":"")+" aparecido antes, então ele ignorou.)";
+  }
+  document.getElementById("fala").textContent=txt;
+  document.getElementById("p1pos").textContent="Passo "+(s1+1)+" de "+T.eventos.length;
+  document.getElementById("p1sl").value=s1;
+  document.getElementById("p1prev").disabled=(s1===0);
+  document.getElementById("p1next").disabled=(s1===T.eventos.length-1);
+  document.getElementById("p1end").disabled=(s1===T.eventos.length-1);
+}
+
+function focar(){
+  var box=document.getElementById("treeBox"), svg=document.getElementById("tree"), ev=T.eventos[s1];
+  var esc=(svg.clientWidth||T.W)/T.W, ax, ay;
+  if(ev.tipo==="inicio"){ax=T.nos[0].x+T.NW/2;ay=T.nos[0].y+T.NH/2}
+  else{
+    var pai=T.nos[ev.id];
+    var fil=ev.novos.length?T.nos[ev.novos[ev.novos.length-1]]:pai;
+    ax=(pai.x+fil.x)/2+T.NW/2; ay=(pai.y+fil.y)/2+T.NH/2;
+  }
+  var alvoX=Math.max(0,ax*esc-box.clientWidth/2), alvoY=Math.max(0,ay*esc-box.clientHeight/2);
+  var suave=!SEMMOV&&T.eventos.length<=120;
+  if(box.scrollTo) box.scrollTo({left:alvoX,top:alvoY,behavior:suave?"smooth":"auto"});
+  else{box.scrollLeft=alvoX;box.scrollTop=alvoY}
+}
+
+function render1(rolar){
+  pintaArvore(); pintaFila(); fala1();
+  if(rolar) focar();
+}
+
+function pintaTorres(){
+  var e=T.nos[T.caminho[s2]].e, W=620, H=260;
+  var hastes=["A","B","C"], base=H-40, alt=Math.min(26,(H-90)/T.n), maxw=W/3-60;
+  var p=['<rect x="40" y="'+base+'" width="'+(W-80)+'" height="9" rx="4.5" fill="var(--line)"/>'];
+  var movido=(s2>0)?T.nos[T.caminho[s2]].mov.disco:-1;
+  for(var i=0;i<3;i++){
+    var cx=W*(i+0.5)/3;
+    p.push('<rect x="'+(cx-5)+'" y="'+(base-alt*T.n-22)+'" width="10" height="'+(alt*T.n+22)+'" rx="5" fill="var(--line)"/>');
+    p.push('<text x="'+cx+'" y="'+(H-8)+'" text-anchor="middle" font-family="Baloo 2,sans-serif" font-size="20" font-weight="700" fill="var(--ink-soft)">'+hastes[i]+'</text>');
+    var pil=e[hastes[i]];
+    for(var j=0;j<pil.length;j++){
+      var tam=pil[j], lw=maxw*(0.36+0.64*tam/T.n), yy=base-(j+1)*alt;
+      p.push('<rect x="'+(cx-lw/2)+'" y="'+yy+'" width="'+lw+'" height="'+(alt-4)+'" rx="6" fill="'+CORES[(tam-1)%8]+'"'+(tam===movido?' stroke="var(--ink)" stroke-width="3"':'')+'/>');
+      if(alt>=16) p.push('<text x="'+cx+'" y="'+(yy+alt-9)+'" text-anchor="middle" font-family="Baloo 2,sans-serif" font-size="14" font-weight="700" fill="#fff">'+tam+'</text>');
+    }
+  }
+  var t=document.getElementById("torres");
+  t.setAttribute("viewBox","0 0 "+W+" "+H); t.innerHTML=p.join("");
+}
+
+function fala2(){
+  var total=T.caminho.length-1, txt;
+  if(s2===0) txt="Posição inicial: tudo na torre A. Falta"+(total>1?"m":"")+" "+total+" movimento"+(total>1?"s":"")+".";
+  else{
+    var m=T.nos[T.caminho[s2]].mov;
+    txt="Movimento "+s2+": o disco "+m.disco+" foi da torre "+m.de+" para a torre "+m.para+".";
+    if(s2===total) txt+=" Pronto, a torre inteira está em C!";
+  }
+  document.getElementById("fala2").textContent=txt;
+  document.getElementById("p2pos").textContent="Movimento "+s2+" de "+total;
+  document.getElementById("p2sl").value=s2;
+  document.getElementById("p2prev").disabled=(s2===0);
+  document.getElementById("p2next").disabled=(s2===total);
+  document.getElementById("p2end").disabled=(s2===total);
+}
+
+function render2(){pintaTorres();fala2()}
+
+function parar(){
+  if(t1){clearInterval(t1);t1=null;document.getElementById("p1play").textContent="Tocar sozinho"}
+  if(t2){clearInterval(t2);t2=null;document.getElementById("p2play").textContent="Tocar sozinho"}
+}
+
+function iniciar(n){
+  parar(); N=n; T=resolver(n); s1=0; s2=0; caber=true;
+  document.getElementById("zoom").textContent="Tamanho real";
+  document.getElementById("p1sl").max=T.eventos.length-1;
+  document.getElementById("p2sl").max=T.caminho.length-1;
+  render1(false); render2();
+  var txt="Com "+n+" disco"+(n>1?"s":"")+": a árvore tem "+T.nos.length+" posições e é montada em "+T.eventos.length+" passos. A solução mais curta tem "+(T.caminho.length-1)+" movimento"+(T.caminho.length-1>1?"s":"")+".";
+  if(n>=7) txt+=" Aqui as posições viram bolinhas, senão não caberia na tela.";
+  document.getElementById("stats").textContent=txt;
+  var bs=document.querySelectorAll(".n-btn");
+  for(var i=0;i<bs.length;i++) bs[i].className="n-btn"+(+bs[i].dataset.n===n?" on":"");
+}
+
+var bts=document.querySelectorAll(".n-btn");
+for(var q=0;q<bts.length;q++) bts[q].onclick=(function(b){return function(){iniciar(+b.dataset.n)}})(bts[q]);
+document.getElementById("zoom").onclick=function(){
+  caber=!caber; this.textContent=caber?"Tamanho real":"Caber na tela"; pintaArvore();
+};
+document.getElementById("p1next").onclick=function(){if(s1<T.eventos.length-1){s1++;render1(true)}};
+document.getElementById("p1prev").onclick=function(){parar();if(s1>0){s1--;render1(true)}};
+document.getElementById("p1rst").onclick=function(){parar();s1=0;render1(false);var b=document.getElementById("treeBox");b.scrollTop=0;b.scrollLeft=0};
+document.getElementById("p1end").onclick=function(){parar();s1=T.eventos.length-1;render1(true)};
+document.getElementById("p1sl").oninput=function(){parar();s1=+this.value;render1(true)};
+document.getElementById("p1play").onclick=function(){
+  if(t1){parar();return}
+  this.textContent="Pausar";
+  var vel=T.eventos.length>120?250:1300;
+  t1=setInterval(function(){
+    if(s1>=T.eventos.length-1){parar();return}
+    s1++; render1(true);
+  },vel);
+};
+document.getElementById("p2next").onclick=function(){if(s2<T.caminho.length-1){s2++;render2()}};
+document.getElementById("p2prev").onclick=function(){parar();if(s2>0){s2--;render2()}};
+document.getElementById("p2rst").onclick=function(){parar();s2=0;render2()};
+document.getElementById("p2end").onclick=function(){parar();s2=T.caminho.length-1;render2()};
+document.getElementById("p2sl").oninput=function(){parar();s2=+this.value;render2()};
+document.getElementById("p2play").onclick=function(){
+  if(t2){parar();return}
+  this.textContent="Pausar";
+  var vel=T.caminho.length>60?300:1100;
+  t2=setInterval(function(){
+    if(s2>=T.caminho.length-1){parar();return}
+    s2++; render2();
+  },vel);
+};
+
+iniciar(3);
+</script>
+</body>
+</html>
